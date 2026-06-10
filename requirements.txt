@@ -1,7 +1,9 @@
 Python
 Pandas
 Scikit-learn
-Jupyter Notebook
+Jupyter
 Joblib
 Streamlit
 GitHub
+matplotlib
+seaborn
