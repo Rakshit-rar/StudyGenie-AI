@@ -10,7 +10,7 @@ DATA_PATH = 'student_data.csv' # Used to establish correct feature columns for e
 CATEGORICAL_COLS = [
     'school', 'sex', 'address', 'famsize', 'Pstatus', 'Mjob', 'Fjob',
     'reason', 'guardian', 'schoolsup', 'famsup', 'paid', 'activities',
-    'nursery', 'higher', 'internet'
+    'nursery', 'higher', 'internet', 'romantic' # 'romantic' needs to be here
 ]
 
 # --- Load Model and Reference Data (Cached to avoid reloading on every rerun) ---
