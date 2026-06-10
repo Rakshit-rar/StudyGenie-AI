@@ -8,30 +8,31 @@ DATA_PATH = 'student_data.csv' # Used to establish correct feature columns for e
 
 # List of categorical columns identified during training
 CATEGORICAL_COLS = [
-    'school', 'sex', 'address', 'famsize', 'Pstatus', 'Mjob', 'Fjob', 
-    'reason', 'guardian', 'schoolsup', 'famsup', 'paid', 'activities', 
-    'nursery', 'higher', 'internet', 'romantic'
+    'school', 'sex', 'address', 'famsize', 'Pstatus', 'Mjob', 'Fjob',
+    'reason', 'guardian', 'schoolsup', 'famsup', 'paid', 'activities',
+    'nursery', 'higher', 'internet'
 ]
 
-# --- Load Model and Reference Data (Cached to avoid reloading on every rerun) --- #
+# --- Load Model and Reference Data (Cached to avoid reloading on every rerun) ---
 @st.cache_resource
 def load_resources():
     """Loads the trained model and reference data for feature engineering."""
     try:
         with open(MODEL_PATH, 'rb') as file:
             model = pickle.load(file)
-        
+
         # Load original data to get the exact column order after one-hot encoding
         # This is crucial for consistent prediction.
         original_df = pd.read_csv(DATA_PATH)
-        
+
         # Get unique values for select boxes
         categorical_options = {}
         for col in CATEGORICAL_COLS:
-            categorical_options[col] = original_df[col].unique().tolist()
+            if col in original_df.columns:
+                categorical_options[col] = original_df[col].unique().tolist()
 
         original_df_encoded = pd.get_dummies(original_df, columns=CATEGORICAL_COLS, drop_first=True)
-        
+
         # Drop the target variable 'G3' to get the exact feature columns (X)
         reference_feature_columns = original_df_encoded.drop('G3', axis=1).columns
 
@@ -43,7 +44,7 @@ def load_resources():
         st.error(f"An error occurred during resource loading: {e}")
         st.stop()
 
-# --- Preprocessing Function --- #
+# --- Preprocessing Function ---
 def preprocess_data(new_data: dict, reference_feature_columns):
     """Preprocesses new student data for prediction, aligning with training data."""
     # Convert new data to a pandas DataFrame
@@ -51,20 +52,20 @@ def preprocess_data(new_data: dict, reference_feature_columns):
 
     # Apply one-hot encoding to categorical columns
     processed_df = pd.get_dummies(new_df, columns=CATEGORICAL_COLS, drop_first=True)
-    
+
     # Align columns with the reference training columns
     final_processed_df = processed_df.reindex(columns=reference_feature_columns, fill_value=0)
 
     return final_processed_df
 
-# --- Streamlit App Layout --- #
+# --- Streamlit App Layout ---
 def main():
     st.title('StudyGenie AI: Student Performance Predictor')
     st.write('Enter student details to predict their final grade (G3).')
 
     model, reference_feature_columns, categorical_options = load_resources()
 
-    # --- Input Fields --- #
+    # --- Input Fields ---
     st.header('Student Information')
     col1, col2, col3 = st.columns(3)
 
@@ -95,12 +96,9 @@ def main():
 
     with col3:
         internet = st.selectbox('Internet Access at Home', options=categorical_options['internet'])
-        romantic = st.selectbox('In a Romantic Relationship', options=categorical_options['romantic'])
         famrel = st.number_input('Family Relationship Quality (1-5)', min_value=1, max_value=5, value=3)
         freetime = st.number_input('Free Time After School (1-5)', min_value=1, max_value=5, value=3)
         goout = st.number_input('Going Out with Friends (1-5)', min_value=1, max_value=5, value=3)
-        Dalc = st.number_input('Workday Alcohol Consumption (1-5)', min_value=1, max_value=5, value=1)
-        Walc = st.number_input('Weekend Alcohol Consumption (1-5)', min_value=1, max_value=5, value=1)
         health = st.number_input('Current Health Status (1-5)', min_value=1, max_value=5, value=3)
         absences = st.number_input('Number of School Absences', min_value=0, max_value=st.session_state.get('max_absences', 75), value=6)
         G1 = st.number_input('First Period Grade (G1, 0-20)', min_value=0, max_value=20, value=10)
@@ -108,16 +106,21 @@ def main():
 
     # Store all inputs in a dictionary
     student_data = {
-        'school': school, 'sex': sex, 'age': age, 'address': address, 'famsize': famsize, 
-        'Pstatus': Pstatus, 'Medu': Medu, 'Fedu': Fedu, 'Mjob': Mjob, 'Fjob': Fjob, 
-        'reason': reason, 'guardian': guardian, 'traveltime': traveltime, 'studytime': studytime, 
-        'failures': failures, 'schoolsup': schoolsup, 'famsup': famsup, 'paid': paid, 
-        'activities': activities, 'nursery': nursery, 'higher': higher, 'internet': internet, 
-        'romantic': romantic, 'famrel': famrel, 'freetime': freetime, 'goout': goout, 'Dalc': Dalc, 
-        'Walc': Walc, 'health': health, 'absences': absences, 'G1': G1, 'G2': G2
+        'school': school, 'sex': sex, 'age': age, 'address': address, 'famsize': famsize,
+        'Pstatus': Pstatus, 'Medu': Medu, 'Fedu': Fedu, 'Mjob': Mjob, 'Fjob': Fjob,
+        'reason': reason, 'guardian': guardian, 'traveltime': traveltime, 'studytime': studytime,
+        'failures': failures, 'schoolsup': schoolsup, 'famsup': famsup, 'paid': paid,
+        'activities': activities, 'nursery': nursery, 'higher': higher, 'internet': internet,
+        'famrel': famrel, 'freetime': freetime, 'goout': goout, 'health': health, 
+        'absences': absences, 'G1': G1, 'G2': G2
     }
+    
+    # Set default values for removed features so they don't cause issues for the model
+    student_data['romantic'] = 'no'  # Assuming 'no' as default for romantic
+    student_data['Dalc'] = 1      # Assuming minimum consumption as default
+    student_data['Walc'] = 1      # Assuming minimum consumption as default
 
-    # --- Prediction --- #
+    # --- Prediction ---
     if st.button('Predict Final Grade (G3)'):
         if model and reference_feature_columns is not None:
             processed_input = preprocess_data(student_data, reference_feature_columns)
