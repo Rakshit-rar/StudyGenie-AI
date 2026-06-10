@@ -1,0 +1,7 @@
+Python
+Pandas
+Scikit-learn
+Jupyter Notebook
+Joblib
+Streamlit
+GitHub
