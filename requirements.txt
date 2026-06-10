@@ -1,9 +1,5 @@
-Python
-Pandas
-Scikit-learn
-Jupyter
-Joblib
-Streamlit
-GitHub
+pandas
+scikit-learn
+streamlit
 matplotlib
 seaborn
