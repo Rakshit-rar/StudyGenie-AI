@@ -25,18 +25,22 @@ def load_resources():
         # This is crucial for consistent prediction.
         original_df = pd.read_csv(DATA_PATH)
 
-        # Get unique values for select boxes
+        # Get unique values for select boxes and for consistent one-hot encoding
         categorical_options = {}
+        categories_for_onehot = {} # New dictionary to store categories for one-hot encoding
         for col in CATEGORICAL_COLS:
             if col in original_df.columns:
-                categorical_options[col] = original_df[col].unique().tolist()
+                unique_cats = sorted(original_df[col].unique().tolist()) # Sort for consistent order
+                categorical_options[col] = unique_cats
+                categories_for_onehot[col] = unique_cats # Store for one-hot encoding
 
         original_df_encoded = pd.get_dummies(original_df, columns=CATEGORICAL_COLS, drop_first=True)
 
         # Drop the target variable 'G3' to get the exact feature columns (X)
         reference_feature_columns = original_df_encoded.drop('G3', axis=1).columns
 
-        return model, reference_feature_columns, categorical_options
+        # Return the new categories_for_onehot dictionary
+        return model, reference_feature_columns, categorical_options, categories_for_onehot
     except FileNotFoundError:
         st.error(f"Error: Make sure '{MODEL_PATH}' and '{DATA_PATH}' are in the same directory.")
         st.stop()
@@ -45,13 +49,14 @@ def load_resources():
         st.stop()
 
 # --- Preprocessing Function ---
-def preprocess_data(new_data: dict, reference_feature_columns):
+def preprocess_data(new_data: dict, reference_feature_columns, categories_for_onehot):
     """Preprocesses new student data for prediction, aligning with training data."""
     # Convert new data to a pandas DataFrame
     new_df = pd.DataFrame([new_data])
 
-    # Apply one-hot encoding to categorical columns
-    processed_df = pd.get_dummies(new_df, columns=CATEGORICAL_COLS, drop_first=True)
+    # Apply one-hot encoding to categorical columns, using explicit categories
+    # to ensure consistency with training data, especially with drop_first=True.
+    processed_df = pd.get_dummies(new_df, columns=CATEGORICAL_COLS, drop_first=True, categories=categories_for_onehot)
 
     # Align columns with the reference training columns
     final_processed_df = processed_df.reindex(columns=reference_feature_columns, fill_value=0)
@@ -63,7 +68,7 @@ def main():
     st.title('StudyGenie AI: Student Performance Predictor')
     st.write('Enter student details to predict their final grade (G3).')
 
-    model, reference_feature_columns, categorical_options = load_resources()
+    model, reference_feature_columns, categorical_options, categories_for_onehot = load_resources() # Unpack new return value
 
     # --- Input Fields ---
     st.header('Student Information')
@@ -123,7 +128,7 @@ def main():
     # --- Prediction ---
     if st.button('Predict Final Grade (G3)'):
         if model and reference_feature_columns is not None:
-            processed_input = preprocess_data(student_data, reference_feature_columns)
+            processed_input = preprocess_data(student_data, reference_feature_columns, categories_for_onehot) # Pass categories_for_onehot
             prediction = model.predict(processed_input)
             st.success(f"Predicted Final Grade (G3): {prediction[0]:.2f}")
         else:
