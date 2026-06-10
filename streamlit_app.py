@@ -54,9 +54,16 @@ def preprocess_data(new_data: dict, reference_feature_columns, categories_for_on
     # Convert new data to a pandas DataFrame
     new_df = pd.DataFrame([new_data])
 
-    # Apply one-hot encoding to categorical columns, using explicit categories
-    # to ensure consistency with training data, especially with drop_first=True.
-    processed_df = pd.get_dummies(new_df, columns=CATEGORICAL_COLS, drop_first=True, categories=categories_for_onehot)
+    # Convert specified columns to 'category' dtype with explicit categories
+    # This ensures consistent one-hot encoding even if a category is missing in new_df
+    for col in CATEGORICAL_COLS:
+        if col in new_df.columns and col in categories_for_onehot:
+            cat_type = pd.CategoricalDtype(categories=categories_for_onehot[col], ordered=False)
+            new_df[col] = new_df[col].astype(cat_type)
+
+    # Apply one-hot encoding to categorical columns.
+    # Since columns are already category dtype, pd.get_dummies will use their defined categories.
+    processed_df = pd.get_dummies(new_df, columns=CATEGORICAL_COLS, drop_first=True)
 
     # Align columns with the reference training columns
     final_processed_df = processed_df.reindex(columns=reference_feature_columns, fill_value=0)
